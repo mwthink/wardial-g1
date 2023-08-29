@@ -77,8 +77,10 @@ const main = () => {
         const dbdata = await knex('data').select().first().where('phone_number', e.phone_number);
         const result = await processEntry(dbdata);
         if(result && result.error && result.survey_completed){
+          // Save results to DB
+          await knex('survey_results').insert({ phone_number: e.phone_number, result_data: JSON.stringify(result.interview_items) });
           // Mark survey as complete
-          await knex('data').update({ survey_completed: true }).where('phone_number', e.phone_number);
+          await knex('data').update({ survey_completed: true, saved_results: true }).where('phone_number', e.phone_number);
         }
         else if(result && result.error && result.out_of_target){
           // Mark survey as complete
@@ -94,6 +96,32 @@ const main = () => {
         console.error(`Unexpected error while processing ${e.phone_number}`);
       }
     })
+  })
+  .then(async () => {
+    // Fetch items again, but this time look for survey completions without data
+    const pendingParse = await knex('data').select()
+      .where('survey_completed', true)
+      .andWhere('saved_results', false);
+    console.log('Re-processing', pendingParse.length, 'completed items');
+
+    // Loop through each entry
+    return Bluebird.each(pendingParse, async function(e){
+      try {
+        const dbdata = await knex('data').select().first().where('phone_number', e.phone_number);
+        const result = await processEntry(dbdata);
+        if(result && result.error && result.survey_completed){
+          // Save results to DB
+          await knex('survey_results').insert({ phone_number: e.phone_number, result_data: JSON.stringify(result.interview_items) });
+          // Mark results as saved
+          await knex('data').update({ saved_results: true }).where('phone_number', e.phone_number);
+        }
+      }
+      catch(err){
+        console.error(err);
+        console.error(`Unexpected error while processing ${e.phone_number}`);
+      }
+    })
+
   })
   
 }

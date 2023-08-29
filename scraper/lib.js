@@ -52,7 +52,30 @@ exports.processEntry = async (entry) => {
   }
   else if(typeof startInterview.data == 'string' && startInterview.data.includes('The survey has already been completed')){
     console.error(`Survey already completed for ${entry.phone_number}`);
-    return { error: true, survey_completed: true };
+
+    // Extract the "idr" value from the forward URL
+    const surveyResultsUrl = startInterview.request._redirectable._currentUrl
+      .replace('answered_survey.cshtml', 'interview_details.cshtml')
+      .replace('/connectors_sessions.axd', '')
+    const interviewIdr = surveyResultsUrl.split('idr=')[1];
+
+    // Use the idr to lookup the results
+    const surveyResults = await formPostRequest(`${surveyUrl.split('/public')[0]}/connectors_sessions.axd`, {
+      _type: 'action',
+      _action: 'contact_interview',
+      _param: JSON.stringify({
+        rgi: interviewIdr,
+        completed: true,
+        compact: false,
+        empty: false,
+      }),
+    })
+    const interviewItems = surveyResults.data.interview.map(i => ({
+      question_text: i.questions[0].question,
+      options: i.questions[0].responses.map(r => r.response),
+      answer: i.questions[0].responses.find(r => i.questions[0].saveddata.rcode === r.code).response,
+    }))
+    return { error: true, survey_completed: true, interview_items: interviewItems };
   }
   // TODO handle timeout
   else {
