@@ -4,8 +4,9 @@ import Knex from 'knex';
 import * as Express from 'express';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Form, Input, Button } from 'reactstrap';
 
-import { HtmlPage, SurveyResultsView } from './ui';
+import { HtmlPage, SurveyResultsView, PhoneEntryView } from './ui';
 
 const app = Express();
 const httpServer = Http.createServer(app);
@@ -37,8 +38,6 @@ app.get('/data/:phoneNumber', async (req, res, next) => {
   
   const pageHtml = renderToStaticMarkup(
     <HtmlPage title='Wardial Web View'>
-      <pre>{JSON.stringify(datas, null, 2)}</pre>
-      { Boolean(surveyData) ? <hr/> : null }
       { Boolean(surveyData) ? <SurveyResultsView survey_results={JSON.parse(surveyData.result_data)}/> : null }
     </HtmlPage>
   )
@@ -46,20 +45,16 @@ app.get('/data/:phoneNumber', async (req, res, next) => {
 })
 
 app.get('/datas', async (req, res, next) => {
-  const datas = await knex('data').select('phone_number', 'survey_completed', 'out_of_target')
+  const datas = await knex('data').select()
     .whereLike('phone_number', `${req.query.phone_prefix}%`);
   
   const pageHtml = renderToStaticMarkup(
     <HtmlPage title='Wardial Web View'>
-      <form method='get'>
-        <input required name="phone_prefix" placeholder='Phone number prefix' defaultValue={req.query.phone_prefix as string}/>
-        <button type="submit">Search</button>
-      </form>
-      <ul>
-        {datas.map(d => (
-          <li key={d.phone_number}><a href={`/data/${d.phone_number}`}>{d.phone_number}</a></li>
-        ))}
-      </ul>
+      <Form method='get'>
+        <Input required name="phone_prefix" placeholder='Phone number prefix' defaultValue={req.query.phone_prefix as string}/>
+        <Button type="submit">Search</Button>
+      </Form>
+      <PhoneEntryView data={datas}/>
     </HtmlPage>
   )
   return res.contentType('html').send(pageHtml);
