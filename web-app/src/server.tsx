@@ -2,6 +2,8 @@ import * as Http from 'http';
 import * as Path from 'path';
 import Knex from 'knex';
 import * as Express from 'express';
+import * as BodyParser from 'body-parser';
+import * as Bluebird from 'bluebird';
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Form, Input, Button } from 'reactstrap';
@@ -61,7 +63,7 @@ app.get('/data/:phoneNumber', async (req, res, next) => {
   
   const pageHtml = renderToStaticMarkup(
     <HtmlPage title='Wardial Web View'>
-      { Boolean(surveyData) ? <SurveyResultsView survey_results={JSON.parse(surveyData.result_data)}/> : null }
+      { Boolean(surveyData) ? <SurveyResultsView survey_results={(typeof surveyData.result_data == 'string' ? JSON.parse(surveyData.result_data) : surveyData.result_data)}/> : null }
     </HtmlPage>
   )
   return res.contentType('html').send(pageHtml);
@@ -88,7 +90,7 @@ app.get('/summary/survey', async (req, res, next) => {
   const datas = await knex('survey_results').select('result_data');
   // Parse all the JSON values that were returned, reduce into a flat array of answers
   const surveyAnswers: {question_text:string,options:string[],answer:string}[] = datas
-    .map(d => JSON.parse(d.result_data))
+    .map(d => ( typeof d.result_data == 'string' ? JSON.parse(d.result_data) : d.result_data))
     .reduce((acc, answers) => acc.concat(answers), [])
 
   const surveySummary = surveyAnswers.reduce((acc, ans) => {
@@ -126,6 +128,40 @@ app.get('/summary/survey', async (req, res, next) => {
   )
   return res.contentType('html').send(pageHtml);
 })
+
+app.get('/dump/export', async (req, res, next) => {
+
+  // curl -s http://127.0.0.1:3000/dump/export | jq -cr '.' > dump.json
+  const dumpData = {
+    data: await knex('data').select()
+      .then(r => r.map(v => ({
+        ...v,
+        survey_completed: Boolean(v.survey_completed),
+        out_of_target: Boolean(v.out_of_target),
+        saved_results: Boolean(v.saved_results),
+      }))
+    ),
+    // survey_results: [],
+    survey_results: await knex('survey_results').select().then(r => r),
+  }
+
+  return res.contentType('json').send(JSON.stringify(dumpData))
+});
+
+app.post('/dump/restore', BodyParser.json({limit:'20mb'}), async (req, res, next) => {
+
+  // curl -s -X POST -H "Content-Type: application/json" -d @dump.json http://127.0.0.1:3000/dump/restore
+  const data = req.body.data;
+  const survey_results = req.body.survey_results;
+  await Bluebird.each(data, async function(r){
+    return knex('data').insert(r);
+  })
+  await Bluebird.each(survey_results, async function(r){
+    return knex('survey_results').insert(r);
+  })
+
+  return res.send('ok');
+});
 
 // Start the application
 Promise.resolve()
