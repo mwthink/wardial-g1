@@ -108,3 +108,26 @@ app.get('/summary/survey', async (req, res, next) => {
 httpServer.listen(3000, () => {
   console.log('HTTP server on port', 3000);
 })
+
+// Handle app shutdown
+const shutdown = () => {
+  console.log('Shutting down HTTP server');
+  return httpServer.close((err) => {
+    if(err){
+      console.error('Error stopping HttpServer');
+      console.error(err);
+    }
+    console.log('Closing Knex connections');
+    return knex.destroy().then(() => {
+      console.log('Knex stopped');
+    })
+    .then(() => {
+      console.log('Application shutdown has completed');
+    })
+  })
+}
+const sigs = ['SIGINT', 'SIGTERM'];
+sigs.forEach(s => process.on(s, () => {
+  console.log('Got signal', s);
+  shutdown();
+}))
