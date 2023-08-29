@@ -85,8 +85,29 @@ app.get('/datas', async (req, res, next) => {
   return res.contentType('html').send(pageHtml);
 })
 
+app.get('/summary/stats', async (req, res, next) => {
+  // Gather all survey data
+  const resultCount = (await knex('survey_results').first().count('result_data', {as:'count'})).count;
+  const namedCount = (await knex('data').first().count('phone_number', {as:'count'}).whereNotNull('extracted_name')).count;
+  const phoneCount = (await knex('data').first().count('phone_number', {as:'count'})).count;
+  const noTargetCount = (await knex('data').first().count('phone_number', {as:'count'}).where('out_of_target', true)).count;
+
+  const pageHtml = renderToStaticMarkup(
+    <HtmlPage title='Wardial Web View'>
+      <ul>
+        <li>Storing {resultCount} results</li>
+        <li>Storing {namedCount} names</li>
+        <li>Storing {phoneCount} total phone records</li>
+        <li>Storing {noTargetCount} non-targeted records</li>
+      </ul>
+    </HtmlPage>
+  )
+  return res.contentType('html').send(pageHtml);
+})
+
 app.get('/summary/survey', async (req, res, next) => {
   // Gather all survey data
+  const resultCount = (await knex('survey_results').first().count('result_data', {as:'result_count'})).result_count;
   const datas = await knex('survey_results').select('result_data');
   // Parse all the JSON values that were returned, reduce into a flat array of answers
   const surveyAnswers: {question_text:string,options:string[],answer:string}[] = datas
@@ -107,6 +128,12 @@ app.get('/summary/survey', async (req, res, next) => {
 
   const pageHtml = renderToStaticMarkup(
     <HtmlPage title='Wardial Web View'>
+      <div>
+        <ul>
+          <li>Reporting on {resultCount} stored results</li>
+        </ul>
+        <hr/>
+      </div>
       {Object.keys(surveySummary).map((qK, qI) => (
         <div key={qK}>
           {qK
