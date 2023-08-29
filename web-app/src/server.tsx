@@ -12,16 +12,36 @@ const app = Express();
 const httpServer = Http.createServer(app);
 
 // Setup database
-const knex = Knex({
-  client: 'sqlite3',
-  useNullAsDefault: false,
-  connection: {
-    filename: Path.resolve(__dirname, '../../db.sqlite')
-  },
+const knexConfig = {
+  ...( Boolean(process.env['PGHOST']) ?
+    // For postgres
+    {
+      client: 'pg',
+      connection: {
+        host: process.env['PGHOST'],
+        port: Number(process.env['PGPORT'] || 5432),
+        database: process.env['PGDATABASE'],
+        user: process.env['PGUSER'],
+        password: process.env['PGPASSWORD'],
+      },
+    }
+    :
+    // For sqlite
+    {
+      client: 'sqlite3',
+      useNullAsDefault: false,
+      connection: {
+        filename: process.env['SQLITE_PATH'] || Path.resolve(__dirname, '../../db.sqlite')
+      },
+    }
+  ),
   migrations: {
     directory: Path.resolve(__dirname, 'knex/migrations')
   },
-})
+}
+console.log('Using DB connector:', knexConfig.client);
+
+const knex = Knex(knexConfig)
 
 // Define HTTP routes
 app.get('/', async (req, res, next) => {
