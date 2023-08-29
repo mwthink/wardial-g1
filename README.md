@@ -71,3 +71,50 @@ Setting the user-agent header in combination with a real, valid phone number yei
 This _elsewhere_ is a survey where my first/last name was presented with no further verification.
 
 The script contained in this repo will wardial this server with a given area code prefix and save off the redirect location it receives from the server.
+
+-----
+Launching one of these entrypoint URLs takes you to a page with a _Next_ button.
+
+Clicking this button triggers this Javascript:
+```js
+$("#next").on("click", function (e) {
+e.preventDefault();
+var json = {
+    _type: "action",
+    _action: "start_interview",
+    _param: JSON.stringify("{}")
+};
+
+$.ajax({
+    url: "/connectors_sessions.axd",
+    dataType: "json",
+    data: $.param(json),
+    success: function (json) {
+
+        if (json.status == 200) {
+            self.location.href = json.path + ".cshtml";
+        }
+        else if (json.status == 210) {
+            var json = {
+                _type: "action",
+                _action: "restore_testmode",
+                _param: JSON.stringify("{}")
+            };
+
+            $.ajax({
+                url: "/connectors.axd",
+                dataType: "json",
+                data: $.param(json),
+                success: function (json) {
+                    window.location = "/default.cshtml?id=xxxxx-xxxxx-xxxxx-xxxxx";
+                }
+            });
+        }
+        else
+            _handleError(json.message);
+    }
+});
+```
+
+While it would be possible for us to construct the URL where the survey will be prior to this point, attempting to access it results in a message about not having an activated survey.
+The above call to `start_interview` is necessary to "activate the survey" and make the page return actual content.
