@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Table, Input } from 'reactstrap';
+import { PhoneEntryData } from './types';
 
 export const HtmlPage: React.FunctionComponent<React.PropsWithChildren<{title?:string}>> = (props) => {
   return (
@@ -13,15 +14,6 @@ export const HtmlPage: React.FunctionComponent<React.PropsWithChildren<{title?:s
       </body>
     </html>
   )
-}
-
-export type PhoneEntryData = {
-  phone_number: string;
-  extracted_name?: string;
-  url?: string;
-  survey_completed?: boolean;
-  out_of_target?: boolean;
-  saved_results?: boolean;
 }
 
 export const SurveyResultsView: React.FunctionComponent<{survey_results:any[]}> = (props) => {
