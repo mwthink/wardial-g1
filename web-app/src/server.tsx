@@ -60,6 +60,50 @@ app.get('/datas', async (req, res, next) => {
   return res.contentType('html').send(pageHtml);
 })
 
+app.get('/summary/survey', async (req, res, next) => {
+  // Gather all survey data
+  const datas = await knex('survey_results').select('result_data');
+  // Parse all the JSON values that were returned, reduce into a flat array of answers
+  const surveyAnswers: {question_text:string,options:string[],answer:string}[] = datas
+    .map(d => JSON.parse(d.result_data))
+    .reduce((acc, answers) => acc.concat(answers), [])
+
+  const surveySummary = surveyAnswers.reduce((acc, ans) => {
+    return {
+      ...acc,
+      [ans.question_text]: {
+        // Spread the existing values, or set blank/default if none
+        ...(acc[ans.question_text] || {}),
+        // Add 1 to either the previous value or zero
+        [ans.answer]: ((acc[ans.question_text] || {})[ans.answer] || 0) + 1
+      }
+    }
+  }, {})
+
+  const pageHtml = renderToStaticMarkup(
+    <HtmlPage title='Wardial Web View'>
+      {Object.keys(surveySummary).map((qK, qI) => (
+        <div key={qK}>
+          {qK
+            .replace(/<br>/g, '\n')
+            .replace(/<b>/g, '*')
+            .replace(/<\/b>/g, '*')
+            .split('\n').map((v, vI) => (
+            <h4 key={[qI,vI].join('-')}>{v}</h4>
+          ))}
+          {Object.keys(surveySummary[qK]).map((aK, aI) => (
+            <div key={aI}>
+              <strong>{aK}</strong> - {surveySummary[qK][aK]}
+            </div>
+          ))}
+          <hr/>
+        </div>
+      ))}
+    </HtmlPage>
+  )
+  return res.contentType('html').send(pageHtml);
+})
+
 // Start the server listening
 httpServer.listen(3000, () => {
   console.log('HTTP server on port', 3000);
