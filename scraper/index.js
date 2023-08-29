@@ -12,9 +12,6 @@ const knex = Knex({
   useNullAsDefault: false,
   connection: {
     filename: Path.resolve(__dirname, '../db.sqlite')
-  },
-  migrations: {
-    directory: Path.resolve(__dirname, 'knex/migrations')
   }
 })
 
@@ -127,9 +124,6 @@ const main = () => {
 }
 
 Promise.resolve()
-.then(() => (
-  knex.migrate.latest().then(() => {
-    return main()
-      .then(() => knex.destroy())
-  })
-))
+.then(() => main()
+  .then(() => knex.destroy())
+)

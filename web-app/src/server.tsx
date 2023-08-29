@@ -17,7 +17,10 @@ const knex = Knex({
   useNullAsDefault: false,
   connection: {
     filename: Path.resolve(__dirname, '../../db.sqlite')
-  }
+  },
+  migrations: {
+    directory: Path.resolve(__dirname, 'knex/migrations')
+  },
 })
 
 // Define HTTP routes
@@ -104,9 +107,13 @@ app.get('/summary/survey', async (req, res, next) => {
   return res.contentType('html').send(pageHtml);
 })
 
-// Start the server listening
-httpServer.listen(3000, () => {
-  console.log('HTTP server on port', 3000);
+// Start the application
+Promise.resolve()
+.then(() => knex.migrate.latest())
+.then(() => {
+  httpServer.listen(3000, () => {
+    console.log('HTTP server on port', 3000);
+  })
 })
 
 // Handle app shutdown
